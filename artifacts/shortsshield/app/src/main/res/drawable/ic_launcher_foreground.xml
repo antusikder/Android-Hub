@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adaptive icon foreground: shield with block slash.
+    108x108dp canvas, safe zone is 72x72dp centered (18dp margin each side).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Shield body -->
+    <path
+        android:fillColor="#FF1744"
+        android:pathData="M54,18 L82,30 L82,58 C82,74 68,86 54,92 C40,86 26,74 26,58 L26,30 Z" />
+
+    <!-- Shield inner -->
+    <path
+        android:fillColor="#CC0000"
+        android:pathData="M54,24 L78,35 L78,58 C78,72 66,83 54,88 C42,83 30,72 30,58 L30,35 Z" />
+
+    <!-- Play triangle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.9"
+        android:pathData="M46,42 L66,54 L46,66 Z" />
+
+    <!-- Block slash (dark red outer) -->
+    <path
+        android:strokeColor="#FF1744"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:pathData="M34,34 L74,74"
+        android:fillColor="#00000000" />
+
+    <!-- Block slash (white core) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M34,34 L74,74"
+        android:fillColor="#00000000" />
+</vector>

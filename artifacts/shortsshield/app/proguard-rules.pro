@@ -1,0 +1,4 @@
+-keep class com.shortsshield.** { *; }
+-keepclassmembers class * extends android.accessibilityservice.AccessibilityService { *; }
+-dontwarn kotlin.**
+-keep class kotlin.** { *; }

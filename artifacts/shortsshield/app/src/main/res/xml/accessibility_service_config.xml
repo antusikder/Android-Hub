@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Targets ONLY YouTube. Listens for window changes + content changes + scrolling.
+    canRetrieveWindowContent = true is required to walk the view tree.
+    FLAG_REPORT_VIEW_IDS is required for findAccessibilityNodeInfosByViewId().
+    notificationTimeout = 50ms for maximum responsiveness (even during fast scroll).
+-->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault|flagReportViewIds|flagRequestFilterKeyEvents"
+    android:accessibilityFlags="flagReportViewIds|flagRequestFilterKeyEvents|flagRetrieveInteractiveWindows"
     android:canPerformGestures="false"
     android:canRetrieveWindowContent="true"
     android:description="@string/service_description"
-    android:notificationTimeout="100"
+    android:notificationTimeout="50"
     android:packageNames="com.google.android.youtube"
-    android:settingsActivity=".MainActivity" />
+    android:settingsActivity=".MainActivity"
+    android:summary="@string/service_summary" />

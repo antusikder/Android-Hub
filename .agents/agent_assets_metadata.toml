@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "11CAiVZL5mehRViv22074"
+uri = "file://ShortsShield.tar.gz"
+type = "unspecified"
+title = "ShortsShield — Complete Android Project"

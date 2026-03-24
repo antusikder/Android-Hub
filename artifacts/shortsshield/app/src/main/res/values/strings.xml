@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ShortsShield</string>
-    <string name="service_label">ShortsShield Accessibility Service</string>
-    <string name="service_description">Automatically blocks YouTube Shorts by navigating back when detected and hiding Shorts shelves from the Home feed.</string>
+    <string name="service_label">ShortsShield</string>
+    <string name="service_description">ShortsShield watches YouTube and automatically navigates away from Shorts and removes Shorts shelves from your Home feed. No data is collected.</string>
+    <string name="service_summary">Blocks YouTube Shorts automatically</string>
     <string name="enable_shield">Enable Shield</string>
-    <string name="description">Tap the button below to open Accessibility Settings and enable ShortsShield.</string>
+    <string name="manage_shield">Manage in Accessibility</string>
+    <string name="open_youtube">Open YouTube</string>
+    <string name="how_it_works_title">How it works</string>
+    <string name="how_it_works_body">Once enabled, ShortsShield runs silently in the background. It only activates inside YouTube.\n\n• Opens YouTube → Shorts? Gone immediately.\n• Shorts shelf on Home feed? Hidden with one tap.\n\nNo account needed. No data collected. No internet required.</string>
+    <string name="step_1">1. Tap \"Enable Shield\" below</string>
+    <string name="step_2">2. Find ShortsShield in the list</string>
+    <string name="step_3">3. Toggle it ON and confirm</string>
+    <string name="step_4">4. Done — open YouTube and enjoy!</string>
 </resources>

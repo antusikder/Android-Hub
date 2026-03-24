@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ShortsShield logo: a bold shield with a diagonal "no" slash across a play button.
+    Colors: red brand primary on dark surface.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+
+    <!-- Shield body (filled red) -->
+    <path
+        android:fillColor="#FF1744"
+        android:pathData="M48,8 L80,20 L80,52 C80,68 64,82 48,88 C32,82 16,68 16,52 L16,20 Z" />
+
+    <!-- Shield inner shadow / depth -->
+    <path
+        android:fillColor="#CC0000"
+        android:pathData="M48,14 L76,25 L76,52 C76,66 62,79 48,84 C34,79 20,66 20,52 L20,25 Z" />
+
+    <!-- Play button triangle (white) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.9"
+        android:pathData="M41,34 L62,48 L41,62 Z" />
+
+    <!-- Block slash — thick diagonal line (dark red, semi-transparent) -->
+    <path
+        android:strokeColor="#FF1744"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:pathData="M28,28 L68,68"
+        android:fillColor="#00000000" />
+
+    <!-- Slash white core for visibility -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M28,28 L68,68"
+        android:fillColor="#00000000" />
+
+</vector>

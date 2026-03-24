@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="40"
+    android:viewportHeight="40">
+
+    <!-- Gray circle background -->
+    <path
+        android:fillColor="#1A757575"
+        android:pathData="M0,20 A20,20 0 1,1 40,20 A20,20 0 1,1 0,20 Z" />
+
+    <!-- Pause icon (inactive) -->
+    <path
+        android:fillColor="#757575"
+        android:pathData="M14,12 L18,12 L18,28 L14,28 Z" />
+    <path
+        android:fillColor="#757575"
+        android:pathData="M22,12 L26,12 L26,28 L22,28 Z" />
+</vector>

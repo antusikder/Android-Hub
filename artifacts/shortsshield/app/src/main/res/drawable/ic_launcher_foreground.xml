@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Adaptive icon foreground: shield with block slash.
-    108x108dp canvas, safe zone is 72x72dp centered (18dp margin each side).
+    Adaptive icon foreground — 108dp canvas.
+    Safe zone: 72dp centered (18dp margin each side).
+    The shield is drawn at 70x70dp centered at (54,54).
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -9,35 +10,36 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Shield body -->
+    <!-- Shield body (red) -->
     <path
         android:fillColor="#FF1744"
-        android:pathData="M54,18 L82,30 L82,58 C82,74 68,86 54,92 C40,86 26,74 26,58 L26,30 Z" />
+        android:pathData="M54,22 L76,32 L76,56 C76,70 65,80 54,84 C43,80 32,70 32,56 L32,32 Z" />
 
-    <!-- Shield inner -->
+    <!-- Shield depth face -->
     <path
-        android:fillColor="#CC0000"
-        android:pathData="M54,24 L78,35 L78,58 C78,72 66,83 54,88 C42,83 30,72 30,58 L30,35 Z" />
+        android:fillColor="#CC001A"
+        android:pathData="M54,27 L73,36 L73,56 C73,68 63,77 54,81 C45,77 35,68 35,56 L35,36 Z" />
 
-    <!-- Play triangle -->
+    <!-- Play button triangle (white) -->
     <path
         android:fillColor="#FFFFFF"
         android:fillAlpha="0.9"
-        android:pathData="M46,42 L66,54 L46,66 Z" />
+        android:pathData="M47,42 L65,54 L47,66 Z" />
 
-    <!-- Block slash (dark red outer) -->
+    <!-- Slash shadow -->
     <path
-        android:strokeColor="#FF1744"
-        android:strokeWidth="7"
+        android:strokeColor="#660000"
+        android:strokeWidth="6"
         android:strokeLineCap="round"
-        android:pathData="M34,34 L74,74"
+        android:pathData="M36,36 L72,72"
         android:fillColor="#00000000" />
 
-    <!-- Block slash (white core) -->
+    <!-- Slash white -->
     <path
         android:strokeColor="#FFFFFF"
         android:strokeWidth="3.5"
         android:strokeLineCap="round"
-        android:pathData="M34,34 L74,74"
+        android:pathData="M36,36 L72,72"
         android:fillColor="#00000000" />
+
 </vector>

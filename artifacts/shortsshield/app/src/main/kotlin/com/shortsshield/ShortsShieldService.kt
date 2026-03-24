@@ -2,6 +2,7 @@ package com.shortsshield
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -12,305 +13,285 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * ShortsShieldService — high-performance AccessibilityService that:
+ * ShortsShieldService
  *
- * 1. BACK-CLICKER: Immediately navigates back when a Shorts reel is detected.
- * 2. SHELF-PURGER: Dismisses "Shorts" shelves on the Home feed via More Options → Fewer Shorts.
+ * An AccessibilityService with two independent, configurable shields:
  *
- * Design principles for speed & reliability:
- * - View-ID lookup first (O(1) hash lookup, no tree traversal).
- * - Tree traversal only as fallback, capped at MAX_DEPTH to avoid hanging on huge trees.
- * - Cooldowns to prevent infinite back-action loops.
- * - AtomicBoolean flags to avoid re-entrant processing on rapid scroll events.
- * - All work on the AccessibilityService callback thread; UI posts only for deferred clicks.
+ * ┌─────────────────────────────────────────────────────────────────────┐
+ * │ SHIELD A — Back-Clicker                                             │
+ * │  Detects the Shorts reel player via view-ID lookup (O(1)) and       │
+ * │  fires GLOBAL_ACTION_BACK immediately. Falls back to a depth-capped │
+ * │  title scan only when no ID match is found.                         │
+ * ├─────────────────────────────────────────────────────────────────────┤
+ * │ SHIELD B — Shelf-Purger                                             │
+ * │  On the Home feed, finds Shorts shelf headers and clicks            │
+ * │  "More options" → "Fewer shorts" to suppress the shelf.            │
+ * └─────────────────────────────────────────────────────────────────────┘
+ *
+ * Performance design:
+ *  - Event source node checked first (no root traversal required).
+ *  - View-ID lookup before any tree scan.
+ *  - Tree scan is depth-capped and short-circuits on first hit.
+ *  - AtomicBoolean guard prevents re-entrant event processing.
+ *  - Separate cooldowns for BACK actions and shelf purges.
+ *  - All work on the AccessibilityService thread; only deferred shelf
+ *    clicks are posted to the main Handler.
  */
 class ShortsShieldService : AccessibilityService() {
 
+    // ── Constants ─────────────────────────────────────────────────────────────
+
     companion object {
         private const val TAG = "ShortsShield"
-        private const val YT_PACKAGE = "com.google.android.youtube"
+        const val YT_PACKAGE = "com.google.android.youtube"
 
-        // YouTube view IDs for the Shorts reel player (confirmed across recent YT versions)
-        private val SHORTS_PLAYER_IDS = setOf(
+        /**
+         * Known view IDs for the Shorts reel player across YouTube releases.
+         * IDs are checked in order; first match wins.
+         */
+        private val SHORTS_PLAYER_IDS = listOf(
             "$YT_PACKAGE:id/reel_player_view_container",
             "$YT_PACKAGE:id/shorts_container",
-            "$YT_PACKAGE:id/reel_channel_bar_inner_container",
             "$YT_PACKAGE:id/reel_watch_fragment_container",
+            "$YT_PACKAGE:id/reel_channel_bar_inner_container",
             "$YT_PACKAGE:id/shorts_video_cell_root",
+            "$YT_PACKAGE:id/shorts_standalone_player_fragment",
+            "$YT_PACKAGE:id/reel_player_page_container",
         )
 
-        // Max tree depth to scan (prevents slow traversal on huge feed pages)
-        private const val MAX_DEPTH = 12
+        /** YouTube activity class names that indicate a Shorts session. */
+        private val SHORTS_ACTIVITY_NAMES = listOf(
+            "com.google.android.apps.youtube.app.watchwhile.WatchWhileActivity",
+            "com.google.android.youtube.ShortsActivity",
+        )
 
-        // Minimum ms between successive BACK actions (prevents double-back)
-        private const val BACK_COOLDOWN_MS = 800L
+        private const val MAX_DEPTH          = 10   // tree scan depth cap
+        private const val BACK_COOLDOWN_MS   = 700L  // min ms between BACK fires
+        private const val PURGE_COOLDOWN_MS  = 4_000L
+        private const val MENU_SETTLE_MS     = 550L  // wait for context menu to open
 
-        // Delay after clicking "More options" before searching for "Fewer shorts"
-        private const val MENU_SETTLE_MS = 600L
-
-        // Minimum ms between purge attempts
-        private const val PURGE_COOLDOWN_MS = 3000L
-
-        // Exact strings YouTube uses (verified via UI Automator)
-        private const val MORE_OPTIONS_DESC = "More options"
-        private const val FEWER_SHORTS_TEXT = "Fewer shorts"
-        private const val NOT_INTERESTED_TEXT = "Not interested"
+        private const val TEXT_MORE_OPTIONS  = "More options"
+        private const val TEXT_FEWER_SHORTS  = "Fewer shorts"
+        private const val TEXT_NOT_INTERESTED = "Not interested"
     }
 
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val isProcessing = AtomicBoolean(false)
-    private val lastBackMs = AtomicLong(0L)
-    private val lastPurgeMs = AtomicLong(0L)
+    // ── State ─────────────────────────────────────────────────────────────────
 
-    // -------------------------------------------------------------------------
-    // Service lifecycle
-    // -------------------------------------------------------------------------
+    private val handler       = Handler(Looper.getMainLooper())
+    private val processing    = AtomicBoolean(false)
+    private val lastBackMs    = AtomicLong(0L)
+    private val lastPurgeMs   = AtomicLong(0L)
+    private lateinit var prefs: ShieldPrefs
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onServiceConnected() {
-        super.onServiceConnected()
-        serviceInfo = serviceInfo.apply {
-            // Restrict to YouTube only — no overhead from other apps
-            packageNames = arrayOf(YT_PACKAGE)
-            eventTypes = (
-                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
-                AccessibilityEvent.TYPE_VIEW_SCROLLED
-            )
-            feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            flags = (
-                AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
-                AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
-            )
-            notificationTimeout = 50 // ms — respond as fast as possible
+        prefs = ShieldPrefs.get(this)
+        applyServiceConfig()
+        NotificationHelper.createChannel(this)
+        if (prefs.showNotification) {
+            NotificationHelper.update(this, ShieldStats.getToday(this))
         }
-        Log.i(TAG, "ShortsShield connected and active")
+        sendBroadcast(Intent(ACTION_STATUS_CHANGED).putExtra(EXTRA_ACTIVE, true))
+        Log.i(TAG, "Service connected")
     }
 
-    override fun onInterrupt() {
-        Log.w(TAG, "ShortsShield interrupted")
+    override fun onUnbind(intent: Intent?): Boolean {
+        NotificationHelper.cancel(this)
+        sendBroadcast(Intent(ACTION_STATUS_CHANGED).putExtra(EXTRA_ACTIVE, false))
+        return super.onUnbind(intent)
     }
 
-    // -------------------------------------------------------------------------
-    // Event processing
-    // -------------------------------------------------------------------------
+    override fun onInterrupt() = Log.w(TAG, "Service interrupted")
+
+    // ── Event entry-point ─────────────────────────────────────────────────────
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         if (event.packageName?.toString() != YT_PACKAGE) return
-
-        // Prevent re-entrant processing (rapid scroll events)
-        if (!isProcessing.compareAndSet(false, true)) return
-
+        if (!processing.compareAndSet(false, true)) return
         try {
-            processEvent(event)
+            handleEvent(event)
         } finally {
-            isProcessing.set(false)
+            processing.set(false)
         }
     }
 
-    private fun processEvent(event: AccessibilityEvent) {
-        // --- Step 1: Fast path via event source node ---
-        val source = event.source
-        if (source != null) {
-            val handled = tryHandleNode(source)
-            source.recycle()
-            if (handled) return
+    private fun handleEvent(event: AccessibilityEvent) {
+        // ─── Fast path 1: source node ID check (no root fetch needed) ───
+        if (prefs.blockShortsPlayer) {
+            val src = event.source
+            if (src != null) {
+                val id = src.viewIdResourceName
+                src.recycle()
+                if (id != null && id in SHORTS_PLAYER_IDS) {
+                    fireBack("source-id:$id")
+                    return
+                }
+            }
         }
 
-        // --- Step 2: Full window scan ---
+        // ─── Fast path 2: window state change → check class name ────────
+        if (prefs.blockDeepLinks &&
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        ) {
+            val cls = event.className?.toString() ?: ""
+            if (SHORTS_ACTIVITY_NAMES.any { it == cls }) {
+                fireBack("activity:$cls")
+                return
+            }
+        }
+
+        // ─── Full root scan ───────────────────────────────────────────────
         val root = rootInActiveWindow ?: return
         try {
-            // Back-clicker: check for Shorts player
-            if (detectAndBlockShortsPlayer(root)) return
-
-            // Shelf-purger: check for Shorts shelf on home feed
+            if (prefs.blockShortsPlayer && detectPlayer(root)) return
             val now = SystemClock.elapsedRealtime()
-            if (now - lastPurgeMs.get() >= PURGE_COOLDOWN_MS) {
-                detectAndPurgeShortsShelf(root)
+            if (prefs.hideShortsShelf && now - lastPurgeMs.get() >= PURGE_COOLDOWN_MS) {
+                purgeShelf(root)
             }
         } finally {
             root.recycle()
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Back-Clicker — O(1) ID lookup then fallback tree scan
-    // -------------------------------------------------------------------------
+    // ── Shield A: Back-Clicker ────────────────────────────────────────────────
 
-    /**
-     * Returns true if a Shorts player was found and BACK was fired.
-     */
-    private fun detectAndBlockShortsPlayer(root: AccessibilityNodeInfo): Boolean {
-        // 1. Try each known Shorts player view ID (fastest)
+    private fun detectPlayer(root: AccessibilityNodeInfo): Boolean {
+        // ID lookup first (hashmap speed)
         for (id in SHORTS_PLAYER_IDS) {
             val nodes = root.findAccessibilityNodeInfosByViewId(id)
             if (!nodes.isNullOrEmpty()) {
                 nodes.forEach { it.recycle() }
-                return fireBack("player ID: $id")
+                return fireBack("view-id:$id")
             }
         }
-
-        // 2. Fallback: depth-limited tree scan for "Shorts" title nodes
-        if (treeContainsShortsTitle(root, 0)) {
-            return fireBack("title scan")
-        }
-
-        return false
-    }
-
-    private fun tryHandleNode(node: AccessibilityNodeInfo): Boolean {
-        val id = node.viewIdResourceName ?: return false
-        if (id in SHORTS_PLAYER_IDS) {
-            return fireBack("source node ID: $id")
-        }
-        return false
-    }
-
-    private fun fireBack(reason: String): Boolean {
-        val now = SystemClock.elapsedRealtime()
-        if (now - lastBackMs.get() < BACK_COOLDOWN_MS) return true // already fired recently
-        lastBackMs.set(now)
-        Log.d(TAG, "Firing BACK — reason: $reason")
-        performGlobalAction(GLOBAL_ACTION_BACK)
-        return true
+        // Fallback: depth-capped title scan
+        return if (hasShortsTitle(root, 0)) fireBack("title-scan") else false
     }
 
     /**
-     * Depth-limited DFS. Checks text and contentDescription for the word "Shorts".
-     * Returns true as soon as a match is found (short-circuits the entire tree).
+     * Returns true if any node in the subtree has text or contentDescription
+     * exactly equal to "Shorts" — indicating this is the Shorts tab/player.
      */
-    private fun treeContainsShortsTitle(node: AccessibilityNodeInfo, depth: Int): Boolean {
+    private fun hasShortsTitle(node: AccessibilityNodeInfo, depth: Int): Boolean {
         if (depth > MAX_DEPTH) return false
-
-        val text = node.text?.toString()
-        val desc = node.contentDescription?.toString()
-
-        // Exact match "Shorts" or it's a title node with "Shorts" in it
-        if (isShortsTitleNode(text, desc)) return true
-
-        val childCount = node.childCount
-        for (i in 0 until childCount) {
-            val child = node.getChild(i) ?: continue
-            val found = treeContainsShortsTitle(child, depth + 1)
+        if (node.text?.toString() == "Shorts" ||
+            node.contentDescription?.toString() == "Shorts"
+        ) return true
+        repeat(node.childCount) { i ->
+            val child = node.getChild(i) ?: return@repeat
+            val found = hasShortsTitle(child, depth + 1)
             child.recycle()
             if (found) return true
         }
         return false
     }
 
-    private fun isShortsTitleNode(text: String?, desc: String?): Boolean {
-        return text == "Shorts" || desc == "Shorts"
+    private fun fireBack(reason: String): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastBackMs.get() < BACK_COOLDOWN_MS) return true
+        lastBackMs.set(now)
+        performGlobalAction(GLOBAL_ACTION_BACK)
+        recordBlock()
+        Log.d(TAG, "BACK fired — $reason")
+        return true
     }
 
-    // -------------------------------------------------------------------------
-    // Shelf-Purger — find Shorts shelf → More options → Fewer shorts
-    // -------------------------------------------------------------------------
+    // ── Shield B: Shelf-Purger ────────────────────────────────────────────────
 
-    private fun detectAndPurgeShortsShelf(root: AccessibilityNodeInfo) {
-        // Look for a Shorts shelf title/header in the home feed
-        val shelfNode = findShortsShelfHeader(root, 0) ?: return
-        shelfNode.recycle()
-
+    private fun purgeShelf(root: AccessibilityNodeInfo) {
+        val shelf = findShelfNode(root, 0) ?: return
+        shelf.recycle()
         lastPurgeMs.set(SystemClock.elapsedRealtime())
-        Log.d(TAG, "Shorts shelf found — looking for More options button")
 
-        // Find the "More options" button (⋮) for this shelf
-        val moreOptionsNode = findNodeByContentDesc(root, MORE_OPTIONS_DESC)
-            ?: return
+        val moreBtn = findByContentDesc(root, TEXT_MORE_OPTIONS) ?: return
+        Log.d(TAG, "Shelf found — clicking More options")
+        moreBtn.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        moreBtn.recycle()
 
-        Log.d(TAG, "Clicking More options")
-        moreOptionsNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        moreOptionsNode.recycle()
-
-        // After the menu appears, click "Fewer shorts"
-        mainHandler.postDelayed({
-            clickMenuOption(FEWER_SHORTS_TEXT)
-        }, MENU_SETTLE_MS)
+        handler.postDelayed({ clickMenuOption() }, MENU_SETTLE_MS)
     }
 
-    private fun clickMenuOption(text: String) {
+    private fun clickMenuOption() {
         val root = rootInActiveWindow ?: return
         try {
-            val node = findNodeByText(root, text)
-            if (node != null) {
-                Log.d(TAG, "Clicking menu option: $text")
-                node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                node.recycle()
-            } else {
-                // Fallback: try "Not interested"
-                val fallback = findNodeByText(root, NOT_INTERESTED_TEXT)
-                if (fallback != null) {
-                    Log.d(TAG, "Fallback — clicking: $NOT_INTERESTED_TEXT")
-                    fallback.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    fallback.recycle()
-                }
-            }
+            val target = findByText(root, TEXT_FEWER_SHORTS)
+                ?: findByText(root, TEXT_NOT_INTERESTED)
+                ?: return
+            Log.d(TAG, "Clicking: ${target.text}")
+            target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            target.recycle()
         } finally {
             root.recycle()
         }
     }
 
     /**
-     * Finds a Shorts shelf header node — a node whose text is "Shorts" that is
-     * NOT inside the Shorts reel player (i.e. it's a feed shelf title).
+     * Finds a Shorts shelf header — a node with text "Shorts" that is NOT
+     * inside the reel player (so it's a home-feed shelf title, not the player).
      */
-    private fun findShortsShelfHeader(node: AccessibilityNodeInfo, depth: Int): AccessibilityNodeInfo? {
+    private fun findShelfNode(node: AccessibilityNodeInfo, depth: Int): AccessibilityNodeInfo? {
         if (depth > MAX_DEPTH) return null
-
         val text = node.text?.toString() ?: ""
         val desc = node.contentDescription?.toString() ?: ""
-        val id = node.viewIdResourceName ?: ""
-
-        // It's a Shorts shelf if it says "Shorts" and is NOT the reel player
+        val id   = node.viewIdResourceName ?: ""
         if ((text == "Shorts" || desc == "Shorts") && id !in SHORTS_PLAYER_IDS) {
-            return AccessibilityNodeInfo.obtain(node) // caller must recycle
+            return AccessibilityNodeInfo.obtain(node)
         }
-
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            val found = findShortsShelfHeader(child, depth + 1)
-            if (found != null) {
-                child.recycle()
-                return found
-            }
+        repeat(node.childCount) { i ->
+            val child = node.getChild(i) ?: return@repeat
+            val found = findShelfNode(child, depth + 1)
             child.recycle()
+            if (found != null) return found
         }
         return null
     }
 
-    /**
-     * Finds the first node whose contentDescription matches [desc] exactly.
-     * Uses system findAccessibilityNodeInfosByText as fast path, then verifies
-     * the content description for precision.
-     */
-    private fun findNodeByContentDesc(
-        root: AccessibilityNodeInfo,
-        desc: String
-    ): AccessibilityNodeInfo? {
-        val candidates = root.findAccessibilityNodeInfosByText(desc)
-        if (!candidates.isNullOrEmpty()) {
-            val exact = candidates.firstOrNull {
-                it.contentDescription?.toString() == desc
-            }
-            // Recycle non-chosen candidates
-            candidates.filter { it !== exact }.forEach { it.recycle() }
-            return exact
-        }
-        return null
+    // ── Node helpers ──────────────────────────────────────────────────────────
+
+    private fun findByContentDesc(root: AccessibilityNodeInfo, desc: String): AccessibilityNodeInfo? {
+        val all = root.findAccessibilityNodeInfosByText(desc) ?: return null
+        val match = all.firstOrNull { it.contentDescription?.toString() == desc }
+        all.filter { it !== match }.forEach { it.recycle() }
+        return match
     }
 
-    /**
-     * Finds a node whose visible text matches [text] (case-insensitive).
-     */
-    private fun findNodeByText(root: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
-        val candidates = root.findAccessibilityNodeInfosByText(text)
-        if (!candidates.isNullOrEmpty()) {
-            val exact = candidates.firstOrNull {
-                it.text?.toString()?.equals(text, ignoreCase = true) == true
-            }
-            candidates.filter { it !== exact }.forEach { it.recycle() }
-            return exact
+    private fun findByText(root: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
+        val all = root.findAccessibilityNodeInfosByText(text) ?: return null
+        val match = all.firstOrNull { it.text?.toString().equals(text, ignoreCase = true) }
+        all.filter { it !== match }.forEach { it.recycle() }
+        return match
+    }
+
+    // ── Stats & notification ──────────────────────────────────────────────────
+
+    private fun recordBlock() {
+        ShieldStats.recordBlocked(this)
+        NotificationHelper.update(this, ShieldStats.getToday(this))
+    }
+
+    // ── Config reload ─────────────────────────────────────────────────────────
+
+    private fun applyServiceConfig() {
+        serviceInfo = serviceInfo?.also { info ->
+            info.packageNames = arrayOf(YT_PACKAGE)
+            info.eventTypes = (
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
+                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
+                AccessibilityEvent.TYPE_VIEW_SCROLLED
+            )
+            info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
+            info.flags = (
+                AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
+                AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            )
+            info.notificationTimeout = 50
         }
-        return null
+    }
+
+    companion object {
+        const val ACTION_STATUS_CHANGED = "com.shortsshield.STATUS_CHANGED"
+        const val EXTRA_ACTIVE          = "active"
     }
 }

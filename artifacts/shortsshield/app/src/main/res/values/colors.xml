@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Brand -->
-    <color name="brand_primary">#FF1744</color>
-    <color name="brand_primary_dark">#D50000</color>
-    <color name="brand_accent">#FF6D00</color>
-    <color name="brand_surface">#121212</color>
-    <color name="brand_surface_variant">#1E1E1E</color>
-    <color name="brand_surface_card">#252525</color>
-    <color name="brand_on_surface">#FFFFFFFF</color>
-    <color name="brand_on_surface_dim">#99FFFFFF</color>
-    <color name="brand_active_green">#00E676</color>
-    <color name="brand_inactive_gray">#757575</color>
+    <color name="brand_red">#FF1744</color>
+    <color name="brand_red_dark">#C4001A</color>
+    <color name="green_active">#00C853</color>
 
-    <!-- System -->
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="surface">#0F0F0F</color>
+    <color name="surface_card">#1A1A1A</color>
+    <color name="surface_variant">#141414</color>
+    <color name="surface_stroke">#2A2A2A</color>
+    <color name="divider">#1F1F1F</color>
+
+    <color name="on_surface">#FFFFFF</color>
+    <color name="on_surface_dim">#99FFFFFF</color>
+    <color name="on_surface_muted">#55FFFFFF</color>
+
+    <color name="stat_bg">#1AFF1744</color>
 </resources>

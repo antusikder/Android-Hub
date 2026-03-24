@@ -1,44 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    ShortsShield logo: a bold shield with a diagonal "no" slash across a play button.
-    Colors: red brand primary on dark surface.
+    ShortsShield brand logo: bold shield with a red gradient body,
+    a white play-button triangle inside, and a thick diagonal slash
+    crossing out the play button — symbolising "blocked".
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="96dp"
-    android:height="96dp"
-    android:viewportWidth="96"
-    android:viewportHeight="96">
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
 
-    <!-- Shield body (filled red) -->
+    <!-- Shield outer (deep red) -->
     <path
         android:fillColor="#FF1744"
-        android:pathData="M48,8 L80,20 L80,52 C80,68 64,82 48,88 C32,82 16,68 16,52 L16,20 Z" />
+        android:pathData="M24,4 L40,11 L40,27 C40,36 32,43 24,46 C16,43 8,36 8,27 L8,11 Z" />
 
-    <!-- Shield inner shadow / depth -->
+    <!-- Shield inner face (slightly lighter for depth) -->
     <path
-        android:fillColor="#CC0000"
-        android:pathData="M48,14 L76,25 L76,52 C76,66 62,79 48,84 C34,79 20,66 20,52 L20,25 Z" />
+        android:fillColor="#E5002B"
+        android:pathData="M24,8 L37,14 L37,27 C37,34.5 30,40.5 24,43 C18,40.5 11,34.5 11,27 L11,14 Z" />
 
-    <!-- Play button triangle (white) -->
+    <!-- Play triangle (white, crisp) -->
     <path
         android:fillColor="#FFFFFF"
-        android:fillAlpha="0.9"
-        android:pathData="M41,34 L62,48 L41,62 Z" />
+        android:fillAlpha="0.95"
+        android:pathData="M20,17 L32,24 L20,31 Z" />
 
-    <!-- Block slash — thick diagonal line (dark red, semi-transparent) -->
+    <!-- Block slash — dark shadow stroke (wide) -->
     <path
-        android:strokeColor="#FF1744"
-        android:strokeWidth="6"
+        android:strokeColor="#800000"
+        android:strokeWidth="4.5"
         android:strokeLineCap="round"
-        android:pathData="M28,28 L68,68"
+        android:pathData="M13,13 L35,35"
         android:fillColor="#00000000" />
 
-    <!-- Slash white core for visibility -->
+    <!-- Block slash — bright white core -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="3"
+        android:strokeWidth="2.5"
         android:strokeLineCap="round"
-        android:pathData="M28,28 L68,68"
+        android:pathData="M13,13 L35,35"
         android:fillColor="#00000000" />
 
 </vector>

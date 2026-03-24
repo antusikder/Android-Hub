@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Active state: shield with a green check — shield is ON -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="52dp"
+    android:height="52dp"
+    android:viewportWidth="52"
+    android:viewportHeight="52">
+
+    <!-- Green glow ring -->
+    <path
+        android:fillColor="#1400C853"
+        android:pathData="M26,2 A24,24 0 1,1 26,50 A24,24 0 1,1 26,2 Z" />
+
+    <!-- Shield body (dark, tinted green) -->
+    <path
+        android:fillColor="#1A1A1A"
+        android:pathData="M26,8 L42,15 L42,30 C42,39 34,46 26,49 C18,46 10,39 10,30 L10,15 Z" />
+
+    <!-- Shield border (green) -->
+    <path
+        android:strokeColor="#00C853"
+        android:strokeWidth="2"
+        android:pathData="M26,8 L42,15 L42,30 C42,39 34,46 26,49 C18,46 10,39 10,30 L10,15 Z"
+        android:fillColor="#00000000" />
+
+    <!-- Green checkmark -->
+    <path
+        android:strokeColor="#00C853"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M18,27 L23,33 L34,21"
+        android:fillColor="#00000000" />
+</vector>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inactive state: gray shield outline with an X -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="52dp"
+    android:height="52dp"
+    android:viewportWidth="52"
+    android:viewportHeight="52">
+
+    <!-- Shield body (dark gray) -->
+    <path
+        android:fillColor="#1A1A1A"
+        android:pathData="M26,8 L42,15 L42,30 C42,39 34,46 26,49 C18,46 10,39 10,30 L10,15 Z" />
+
+    <!-- Shield border (dim gray) -->
+    <path
+        android:strokeColor="#555555"
+        android:strokeWidth="2"
+        android:pathData="M26,8 L42,15 L42,30 C42,39 34,46 26,49 C18,46 10,39 10,30 L10,15 Z"
+        android:fillColor="#00000000" />
+
+    <!-- Gray dashes (inactive pattern) -->
+    <path
+        android:strokeColor="#444444"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M20,24 L32,24"
+        android:fillColor="#00000000" />
+</vector>

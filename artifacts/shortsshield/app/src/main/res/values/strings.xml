@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ShortsShield</string>
+    <string name="service_label">ShortsShield Accessibility Service</string>
+    <string name="service_description">Automatically blocks YouTube Shorts by navigating back when detected and hiding Shorts shelves from the Home feed.</string>
+    <string name="enable_shield">Enable Shield</string>
+    <string name="description">Tap the button below to open Accessibility Settings and enable ShortsShield.</string>
+</resources>
